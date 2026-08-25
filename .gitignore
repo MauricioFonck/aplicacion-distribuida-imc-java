@@ -1,0 +1,27 @@
+# Compilación
+build/
+out/
+target/
+*.class
+*.jar
+
+# NetBeans
+/nbproject/private/
+/build/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.log
+*.tmp

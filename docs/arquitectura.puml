@@ -1,0 +1,22 @@
+@startuml
+left to right direction
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+actor "Usuario" as user
+component "Cliente IMC\nClientWindow + ImcClient" as client
+component "Protocolo compartido\nImcProtocol" as protocol
+component "Servidor IMC\nServerWindow + ImcServer" as server
+component "Cálculo de dominio\nImcCalculator" as calculator
+
+user --> client : Ingresa IP, puerto, peso y altura
+client --> protocol : Serializa solicitud
+protocol --> server : TCP\nfloat peso + float altura
+server --> calculator : Calcula IMC
+calculator --> server : valor + mensaje
+server --> protocol : Serializa respuesta
+protocol --> client : TCP\nfloat IMC + UTF mensaje
+client --> user : Muestra resultado
+
+@enduml
