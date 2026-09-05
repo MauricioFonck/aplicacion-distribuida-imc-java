@@ -15,6 +15,12 @@ Este repositorio aloja más de un proyecto. **Cada rama contiene una aplicación
 
 El detalle del parcial se encuentra más abajo, en [Parcial Corte 1](#parcial-corte-1).
 
+### Nota sobre el historial del repositorio
+
+La rama `main` se actualizó y el repositorio se volvió a publicar durante la preparación del **Parcial Corte 1**. Al incorporar el proyecto del parcial en la rama `parcial-corte-1` se presentaron errores en el historial de versiones que no fue posible corregir sobre el repositorio existente, por lo que se optó por crearlo de nuevo y publicar las dos ramas desde la copia local.
+
+El contenido de los dos proyectos se conservó íntegro: la rama `main` mantiene la aplicación distribuida para calcular el IMC y la rama `parcial-corte-1` contiene la entrega del parcial. Ambas ramas parten del mismo commit inicial, de modo que la relación entre la base de código y el parcial se mantiene intacta.
+
 ## Requisitos
 
 Se necesita un JDK 8 o una versión posterior. El proyecto utiliza solamente clases de la biblioteca estándar de Java. También incluye un archivo `pom.xml` para abrirlo como proyecto Maven en NetBeans.
