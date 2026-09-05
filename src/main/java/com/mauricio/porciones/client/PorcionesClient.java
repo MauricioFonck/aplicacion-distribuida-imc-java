@@ -1,7 +1,7 @@
-package com.mauricio.imc.client;
+package com.mauricio.porciones.client;
 
-import com.mauricio.imc.core.ImcProtocol;
-import com.mauricio.imc.core.ImcResult;
+import com.mauricio.porciones.core.PorcionesProtocol;
+import com.mauricio.porciones.core.PorcionesResult;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -10,9 +10,12 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 
 /**
- * Cliente TCP para comunicarse con el servidor IMC.
+ * Cliente TCP que consulta al servidor las porciones necesarias para una reunión.
  */
-public final class ImcClient implements AutoCloseable {
+public final class PorcionesClient implements AutoCloseable {
+    private static final int CONNECT_TIMEOUT_MS = 5000;
+    private static final int READ_TIMEOUT_MS = 15000;
+
     private Socket socket;
     private DataInputStream input;
     private DataOutputStream output;
@@ -26,8 +29,8 @@ public final class ImcClient implements AutoCloseable {
 
         Socket newSocket = new Socket();
         try {
-            newSocket.connect(new InetSocketAddress(host.trim(), port), 5000);
-            newSocket.setSoTimeout(15000);
+            newSocket.connect(new InetSocketAddress(host.trim(), port), CONNECT_TIMEOUT_MS);
+            newSocket.setSoTimeout(READ_TIMEOUT_MS);
             socket = newSocket;
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
@@ -37,10 +40,18 @@ public final class ImcClient implements AutoCloseable {
         }
     }
 
-    public synchronized ImcResult calculate(float weightKg, float heightMeters) throws IOException {
+    /**
+     * Envía la solicitud al servidor y espera la estimación.
+     *
+     * @param asistentes          cantidad de personas que asistirán.
+     * @param porcionesPorPersona porciones previstas para cada persona.
+     * @return el resultado devuelto por el servidor.
+     */
+    public synchronized PorcionesResult calculate(int asistentes, int porcionesPorPersona)
+            throws IOException {
         ensureConnected();
-        ImcProtocol.writeRequest(output, weightKg, heightMeters);
-        return ImcProtocol.readResponse(input);
+        PorcionesProtocol.writeRequest(output, asistentes, porcionesPorPersona);
+        return PorcionesProtocol.readResponse(input);
     }
 
     public synchronized boolean isConnected() {

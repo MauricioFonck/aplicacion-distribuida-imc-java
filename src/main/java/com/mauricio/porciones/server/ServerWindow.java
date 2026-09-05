@@ -1,4 +1,6 @@
-package com.mauricio.imc.server;
+package com.mauricio.porciones.server;
+
+import com.mauricio.porciones.core.PorcionesProtocol;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -20,18 +22,19 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
 /**
- * Interfaz gráfica del servidor.
+ * Interfaz gráfica del servidor de porciones.
  */
 public final class ServerWindow extends JFrame {
-    private final JTextField portField = new JTextField("9007", 8);
+    private final JTextField portField =
+            new JTextField(String.valueOf(PorcionesProtocol.DEFAULT_PORT), 8);
     private final JLabel statusLabel = new JLabel("DETENIDO");
     private final JTextArea logArea = new JTextArea(14, 52);
     private final JButton startStopButton = new JButton("INICIAR");
 
-    private ImcServer server;
+    private PorcionesServer server;
 
     public ServerWindow() {
-        super("Servidor IMC - TCP");
+        super("Servidor de porciones - TCP");
         buildUi();
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
@@ -46,7 +49,7 @@ public final class ServerWindow extends JFrame {
     private void buildUi() {
         setLayout(new BorderLayout(12, 12));
 
-        JLabel title = new JLabel("SERVIDOR IMC", JLabel.CENTER);
+        JLabel title = new JLabel("SERVIDOR DE PORCIONES", JLabel.CENTER);
         title.setFont(title.getFont().deriveFont(22f));
         title.setBorder(BorderFactory.createEmptyBorder(12, 12, 0, 12));
         add(title, BorderLayout.NORTH);
@@ -114,7 +117,7 @@ public final class ServerWindow extends JFrame {
         }
 
         try {
-            server = new ImcServer(port, this::appendLog);
+            server = new PorcionesServer(port, this::appendLog);
             server.start();
             portField.setEnabled(false);
             startStopButton.setText("DETENER");

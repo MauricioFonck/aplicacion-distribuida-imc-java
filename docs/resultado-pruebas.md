@@ -1,32 +1,59 @@
-# Resultado de pruebas
+# Plan y resultado de pruebas
 
-## Entorno de trabajo
+> **Estado de ejecución:** el código de las pruebas está incluido en el repositorio, pero
+> todavía no se ejecutó porque el equipo donde se preparó esta entrega no tiene un JDK
+> instalado. Para dejar constancia del resultado, ejecute `./scripts/test.sh` en un equipo
+> con JDK 8 o superior y registre en este documento la salida obtenida.
 
-La verificación se realizó en Linux con OpenJDK 21.0.12. El código se compiló con `javac --release 8` para conservar la compatibilidad con la versión de Java utilizada en la guía.
+## Entorno de trabajo previsto
 
-## Pruebas realizadas
+| Elemento | Valor |
+|---|---|
+| Lenguaje | Java SE 8 (`javac --release 8`). |
+| Dependencias externas | Ninguna. Las pruebas son clases con método `main`. |
+| Puerto del servidor | `9008` en ejecución normal, `19008` en la prueba de integración. |
+| Comando | `./scripts/test.sh` |
 
-| Verificación | Método utilizado | Resultado |
+## Pruebas del cálculo (`PorcionesCalculatorTest`)
+
+| Prueba | Entrada | Resultado esperado |
 |---|---|---|
-| Compilación del proyecto | `./scripts/compile.sh` | Correcta. |
-| Cálculo de un IMC dentro del rango saludable | `ImcCalculatorTest` | Correcto. |
-| Rechazo de peso igual a cero | `ImcCalculatorTest` | Correcto. |
-| Rechazo de valores no numéricos o no finitos | `ImcCalculatorTest` | Correcto. |
-| Presentación del resultado con dos decimales | `ImcCalculatorTest` | Correcto. |
-| Inicio del servidor TCP | `ImcSocketIntegrationTest` | Correcto. |
-| Conexión del cliente al servidor | `ImcSocketIntegrationTest` | Correcto. |
-| Realización de dos cálculos con una misma conexión | `ImcSocketIntegrationTest` | Correcto. |
-| Registro de los eventos de conexión | `ImcSocketIntegrationTest` | Correcto. |
-| Revisión de formato de los archivos | `git diff --check` | Sin errores. |
+| Multiplicación básica | 25 personas, 3 porciones | Válido, total `75`, clasificación «Reunión mediana». |
+| Una sola persona | 1 persona, 1 porción | Válido, total `1`, mensaje en singular. |
+| Valores no positivos | 0 personas, 3 porciones | Inválido, mensaje «deben ser mayores que 0». |
+| Valores negativos | 10 personas, −2 porciones | Inválido, total `0`. |
+| Límite de personas | 100.001 personas, 1 porción | Inválido. |
+| Límite de porciones | 10 personas, 101 porciones | Inválido. |
+| Caso máximo sin desbordamiento | 100.000 personas, 100 porciones | Válido, total `10.000.000`. |
+| Margen de reserva | 75, 10 y 0 porciones | `83`, `11` y `0` respectivamente. |
+| Clasificación | 10, 11, 200 y 201 personas | Pequeña, mediana, grande y evento masivo. |
+| Formato de enteros | 75 y 10.000 | `75` sin separador y un valor de seis caracteres con separador de miles. |
 
-## Resultado general
+## Prueba de integración TCP (`PorcionesSocketIntegrationTest`)
 
-El comando `./scripts/test.sh` terminó correctamente. La prueba del cálculo verificó los casos válidos y las entradas incorrectas. La prueba de integración inició un servidor, conectó un cliente, envió dos solicitudes y comprobó las respuestas recibidas.
+Levanta un servidor real en el puerto `19008`, conecta un cliente real y verifica el
+intercambio completo de mensajes:
 
-La compilación mostró únicamente avisos del JDK sobre el uso del nivel de fuente 8. Estos avisos no impidieron la compilación ni la ejecución de las pruebas.
+| Paso | Entrada | Resultado esperado |
+|---|---|---|
+| Primera solicitud | 25 personas, 3 porciones | Válido, total `75`, mensaje con «mediana». |
+| Segunda solicitud en la misma conexión | 300 personas, 2 porciones | Válido, total `600`, mensaje con «masivo». |
+| Solicitud rechazada | 0 personas, 5 porciones | Inválido, total `0`, sin cierre de la conexión. |
+| Solicitud posterior al rechazo | 8 personas, 4 porciones | Válido, total `32`. |
+| Estado del servidor | — | El servidor sigue activo y registró eventos en el log. |
 
-## Comprobación manual
+Esta prueba confirma tres puntos: que el protocolo binario serializa y deserializa
+correctamente, que una misma conexión atiende varias solicitudes y que un rechazo del
+servidor no interrumpe la sesión del cliente.
 
-También se comprobó el flujo de uso de la aplicación. Se inicia el servidor en el puerto `9007`, se conecta el cliente utilizando `localhost` y se envían los valores `70` kg y `1.75` m. El resultado esperado es un IMC aproximado de `22.86`, acompañado del mensaje correspondiente.
+## Comprobación manual sugerida
 
-Después se pueden probar campos vacíos, texto en lugar de números y valores iguales o menores que cero. En esos casos se muestra un mensaje de validación y la aplicación continúa funcionando.
+1. Ejecutar `./scripts/run-server.sh`, dejar el puerto `9008` y pulsar **INICIAR**.
+2. Ejecutar `./scripts/run-client.sh`, escribir `localhost` y `9008`, y pulsar **CONECTAR**.
+3. En la pestaña **CALCULAR PORCIONES**, introducir `40` personas y `3` porciones por
+   persona. El total esperado es `120` y la sugerencia con reserva es `132`.
+4. Introducir `0` personas y comprobar que la aplicación muestra el mensaje de validación sin
+   perder la conexión.
+5. Abrir un segundo cliente contra el mismo servidor y comprobar que ambos reciben respuesta
+   y que el log del servidor registra las dos conexiones.
+6. Cerrar el servidor y comprobar que el cliente informa el error al intentar calcular.

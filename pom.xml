@@ -5,10 +5,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.mauricio</groupId>
-    <artifactId>aplicacion-distribuida-imc-java</artifactId>
+    <artifactId>aplicacion-distribuida-porciones-java</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>Aplicación distribuida IMC Java</name>
-    <description>Cliente y servidor TCP para calcular el índice de masa corporal.</description>
+    <name>Porciones de comida para una reunion</name>
+    <description>Cliente y servidor TCP para estimar las porciones de comida de una reunion. Parcial Corte 1.</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

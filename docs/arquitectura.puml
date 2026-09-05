@@ -4,19 +4,19 @@ skinparam componentStyle rectangle
 skinparam shadowing false
 skinparam defaultFontName Arial
 
-actor "Usuario" as user
-component "Cliente IMC\nClientWindow + ImcClient" as client
-component "Protocolo compartido\nImcProtocol" as protocol
-component "Servidor IMC\nServerWindow + ImcServer" as server
-component "Cálculo de dominio\nImcCalculator" as calculator
+actor "Organizador" as user
+component "Cliente de porciones\nClientWindow + PorcionesClient" as client
+component "Protocolo compartido\nPorcionesProtocol" as protocol
+component "Servidor de porciones\nServerWindow + PorcionesServer" as server
+component "Calculo de dominio\nPorcionesCalculator" as calculator
 
-user --> client : Ingresa IP, puerto, peso y altura
+user --> client : Ingresa IP, puerto, personas y porciones por persona
 client --> protocol : Serializa solicitud
-protocol --> server : TCP\nfloat peso + float altura
-server --> calculator : Calcula IMC
-calculator --> server : valor + mensaje
+protocol --> server : TCP\nint personas + int porciones por persona
+server --> calculator : Calcula el total de porciones
+calculator --> server : valido + total + mensaje
 server --> protocol : Serializa respuesta
-protocol --> client : TCP\nfloat IMC + UTF mensaje
-client --> user : Muestra resultado
+protocol --> client : TCP\nboolean valido + long total + UTF mensaje
+client --> user : Muestra el total y la reserva sugerida
 
 @enduml

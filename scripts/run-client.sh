@@ -8,4 +8,4 @@ if [ ! -d out/main ]; then
   "$ROOT_DIR/scripts/compile.sh"
 fi
 
-java -cp out/main com.mauricio.imc.client.ClientWindow
+java -cp out/main com.mauricio.porciones.client.ClientWindow

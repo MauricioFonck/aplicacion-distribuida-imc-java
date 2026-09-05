@@ -1,8 +1,8 @@
-package com.mauricio.imc.server;
+package com.mauricio.porciones.server;
 
-import com.mauricio.imc.core.ImcCalculator;
-import com.mauricio.imc.core.ImcProtocol;
-import com.mauricio.imc.core.ImcResult;
+import com.mauricio.porciones.core.PorcionesCalculator;
+import com.mauricio.porciones.core.PorcionesProtocol;
+import com.mauricio.porciones.core.PorcionesResult;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -20,9 +20,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 /**
- * Servidor TCP del cálculo de IMC.
+ * Servidor TCP que estima las porciones de comida de una reunión.
+ *
+ * <p>Cada conexión se atiende en un hilo independiente y una misma conexión puede
+ * resolver varias solicitudes consecutivas.</p>
  */
-public final class ImcServer implements AutoCloseable {
+public final class PorcionesServer implements AutoCloseable {
     private static final DateTimeFormatter LOG_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -35,7 +38,7 @@ public final class ImcServer implements AutoCloseable {
     private volatile ServerSocket serverSocket;
     private Thread acceptThread;
 
-    public ImcServer(int port, Consumer<String> logger) {
+    public PorcionesServer(int port, Consumer<String> logger) {
         validatePort(port);
         this.port = port;
         this.logger = logger == null ? message -> { } : logger;
@@ -48,7 +51,7 @@ public final class ImcServer implements AutoCloseable {
 
         serverSocket = new ServerSocket(port);
         running = true;
-        acceptThread = new Thread(this::acceptClients, "imc-server-acceptor");
+        acceptThread = new Thread(this::acceptClients, "porciones-server-acceptor");
         acceptThread.setDaemon(true);
         acceptThread.start();
         log("Servidor iniciado en " + getBindAddress() + ":" + port);
@@ -61,7 +64,7 @@ public final class ImcServer implements AutoCloseable {
                 clients.add(client);
                 log("Cliente conectado: " + client.getRemoteSocketAddress());
                 Thread worker = new Thread(() -> handleClient(client),
-                        "imc-client-" + client.getPort());
+                        "porciones-client-" + client.getPort());
                 worker.setDaemon(true);
                 worker.start();
             } catch (SocketException ex) {
@@ -81,20 +84,22 @@ public final class ImcServer implements AutoCloseable {
              DataInputStream input = new DataInputStream(socket.getInputStream());
              DataOutputStream output = new DataOutputStream(socket.getOutputStream())) {
             while (running && !socket.isClosed()) {
-                ImcProtocol.ImcRequest request;
+                PorcionesProtocol.PorcionesRequest request;
                 try {
-                    request = ImcProtocol.readRequest(input);
+                    request = PorcionesProtocol.readRequest(input);
                 } catch (EOFException ex) {
                     break;
                 }
 
-                ImcResult result = ImcCalculator.calculate(
-                        request.getWeightKg(), request.getHeightMeters());
-                ImcProtocol.writeResponse(output, result);
+                PorcionesResult result = PorcionesCalculator.calculate(
+                        request.getAsistentes(), request.getPorcionesPorPersona());
+                PorcionesProtocol.writeResponse(output, result);
                 log("Solicitud atendida desde " + socket.getRemoteSocketAddress()
-                        + ": peso=" + request.getWeightKg()
-                        + ", altura=" + request.getHeightMeters()
-                        + ", imc=" + ImcCalculator.format(result.getValue()));
+                        + ": personas=" + request.getAsistentes()
+                        + ", porciones/persona=" + request.getPorcionesPorPersona()
+                        + ", total=" + (result.isValid()
+                                ? PorcionesCalculator.format(result.getValue())
+                                : "rechazada (" + result.getMessage() + ")"));
             }
         } catch (IOException ex) {
             if (running) {

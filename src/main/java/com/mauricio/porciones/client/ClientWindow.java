@@ -1,7 +1,8 @@
-package com.mauricio.imc.client;
+package com.mauricio.porciones.client;
 
-import com.mauricio.imc.core.ImcCalculator;
-import com.mauricio.imc.core.ImcResult;
+import com.mauricio.porciones.core.PorcionesCalculator;
+import com.mauricio.porciones.core.PorcionesProtocol;
+import com.mauricio.porciones.core.PorcionesResult;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -11,6 +12,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -22,23 +24,26 @@ import java.awt.event.WindowEvent;
 import java.io.IOException;
 
 /**
- * Interfaz gráfica del cliente.
+ * Interfaz gráfica del cliente de porciones.
  */
 public final class ClientWindow extends JFrame {
     private final JTextField hostField = new JTextField("localhost", 16);
-    private final JTextField portField = new JTextField("9007", 8);
+    private final JTextField portField =
+            new JTextField(String.valueOf(PorcionesProtocol.DEFAULT_PORT), 8);
     private final JLabel connectionStatus = new JLabel("DESCONECTADO");
     private final JButton connectButton = new JButton("CONECTAR");
-    private final JTextField weightField = new JTextField(10);
-    private final JTextField heightField = new JTextField(10);
+
+    private final JTextField attendeesField = new JTextField(10);
+    private final JTextField portionsField = new JTextField(10);
     private final JButton calculateButton = new JButton("CALCULAR");
-    private final JLabel resultLabel = new JLabel("0.00");
+    private final JLabel totalLabel = new JLabel("0");
+    private final JLabel reserveLabel = new JLabel("0");
     private final JLabel messageLabel = new JLabel("Sin resultados todavía.");
 
-    private final ImcClient client = new ImcClient();
+    private final PorcionesClient client = new PorcionesClient();
 
     public ClientWindow() {
-        super("Cliente IMC - TCP");
+        super("Cliente de porciones - TCP");
         buildUi();
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         addWindowListener(new WindowAdapter() {
@@ -52,14 +57,14 @@ public final class ClientWindow extends JFrame {
 
     private void buildUi() {
         setLayout(new BorderLayout(12, 12));
-        JLabel title = new JLabel("CLIENTE IMC", JLabel.CENTER);
+        JLabel title = new JLabel("PORCIONES PARA UNA REUNIÓN", JLabel.CENTER);
         title.setFont(title.getFont().deriveFont(22f));
         title.setBorder(BorderFactory.createEmptyBorder(12, 12, 0, 12));
         add(title, BorderLayout.NORTH);
 
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("CONEXIÓN", buildConnectionPanel());
-        tabs.addTab("CALCULAR IMC", buildCalculationPanel());
+        tabs.addTab("CALCULAR PORCIONES", buildCalculationPanel());
         add(tabs, BorderLayout.CENTER);
 
         pack();
@@ -90,8 +95,9 @@ public final class ClientWindow extends JFrame {
         panel.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
         GridBagConstraints constraints = baseConstraints();
 
-        addRow(panel, constraints, 0, "Peso (kg):", weightField);
-        addRow(panel, constraints, 1, "Altura (m):", heightField);
+        addRow(panel, constraints, 0, "Personas que asistirán:", attendeesField);
+        addRow(panel, constraints, 1, "Porciones por persona:", portionsField);
+
         constraints.gridx = 0;
         constraints.gridy = 2;
         constraints.gridwidth = 2;
@@ -101,8 +107,9 @@ public final class ClientWindow extends JFrame {
         panel.add(calculateButton, constraints);
 
         constraints.gridwidth = 1;
-        addRow(panel, constraints, 3, "IMC:", resultLabel);
-        addRow(panel, constraints, 4, "Mensaje:", messageLabel);
+        addRow(panel, constraints, 3, "Total de porciones:", totalLabel);
+        addRow(panel, constraints, 4, "Sugerido con 10 % de reserva:", reserveLabel);
+        addRow(panel, constraints, 5, "Mensaje:", messageLabel);
         return panel;
     }
 
@@ -169,33 +176,28 @@ public final class ClientWindow extends JFrame {
             return;
         }
 
-        final float weight;
-        final float height;
+        final int asistentes;
+        final int porcionesPorPersona;
         try {
-            weight = parseDecimal(weightField.getText(), "El peso");
-            height = parseDecimal(heightField.getText(), "La altura");
-            if (weight <= 0 || height <= 0) {
-                throw new IllegalArgumentException("El peso y la altura deben ser mayores que 0.");
-            }
+            asistentes = parseCount(attendeesField.getText(), "La cantidad de personas");
+            porcionesPorPersona = parseCount(portionsField.getText(), "Las porciones por persona");
         } catch (IllegalArgumentException ex) {
             showError(ex.getMessage());
             return;
         }
 
         calculateButton.setEnabled(false);
-        new SwingWorker<ImcResult, Void>() {
+        new SwingWorker<PorcionesResult, Void>() {
             @Override
-            protected ImcResult doInBackground() throws IOException {
-                return client.calculate(weight, height);
+            protected PorcionesResult doInBackground() throws IOException {
+                return client.calculate(asistentes, porcionesPorPersona);
             }
 
             @Override
             protected void done() {
                 calculateButton.setEnabled(true);
                 try {
-                    ImcResult result = get();
-                    resultLabel.setText(ImcCalculator.format(result.getValue()));
-                    messageLabel.setText(result.getMessage());
+                    showResult(get());
                 } catch (Exception ex) {
                     client.close();
                     setDisconnectedState();
@@ -203,6 +205,21 @@ public final class ClientWindow extends JFrame {
                 }
             }
         }.execute();
+    }
+
+    private void showResult(PorcionesResult result) {
+        if (!result.isValid()) {
+            totalLabel.setText("0");
+            reserveLabel.setText("0");
+            messageLabel.setText(result.getMessage());
+            showError(result.getMessage());
+            return;
+        }
+
+        totalLabel.setText(PorcionesCalculator.format(result.getValue()));
+        reserveLabel.setText(
+                PorcionesCalculator.format(PorcionesCalculator.withReserve(result.getValue())));
+        messageLabel.setText(result.getMessage());
     }
 
     private void setConnectedState() {
@@ -241,15 +258,20 @@ public final class ClientWindow extends JFrame {
         }
     }
 
-    private static float parseDecimal(String text, String fieldName) {
+    private static int parseCount(String text, String fieldName) {
         if (text == null || text.trim().isEmpty()) {
-            throw new IllegalArgumentException(fieldName + " es obligatorio.");
+            throw new IllegalArgumentException(fieldName + " es obligatoria.");
         }
+        final int value;
         try {
-            return Float.parseFloat(text.trim().replace(',', '.'));
+            value = Integer.parseInt(text.trim());
         } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException(fieldName + " debe ser un número válido.");
+            throw new IllegalArgumentException(fieldName + " debe ser un número entero.");
         }
+        if (value <= 0) {
+            throw new IllegalArgumentException(fieldName + " debe ser mayor que 0.");
+        }
+        return value;
     }
 
     private void showError(String message) {
@@ -265,6 +287,6 @@ public final class ClientWindow extends JFrame {
     }
 
     public static void main(String[] args) {
-        javax.swing.SwingUtilities.invokeLater(() -> new ClientWindow().setVisible(true));
+        SwingUtilities.invokeLater(() -> new ClientWindow().setVisible(true));
     }
 }
