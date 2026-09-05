@@ -17,7 +17,7 @@ public final class PorcionesCalculator {
     public static final int MAX_PORCIONES_POR_PERSONA = 100;
 
     /** Porcentaje de porciones adicionales que se sugiere preparar como reserva. */
-    public static final double MARGEN_RESERVA = 0.10;
+    public static final int PORCENTAJE_RESERVA = 10;
 
     private static final Locale LOCALE = new Locale("es", "CO");
 
@@ -60,7 +60,10 @@ public final class PorcionesCalculator {
         if (total <= 0L) {
             return 0L;
         }
-        return (long) Math.ceil(total * (1.0 + MARGEN_RESERVA));
+        // Aritmética entera: la reserva se redondea hacia arriba sin usar coma flotante,
+        // porque expresiones como 200 * 1.1 producen 220.00000000000003 y desvían el redondeo.
+        long reserva = (total * PORCENTAJE_RESERVA + 99L) / 100L;
+        return total + reserva;
     }
 
     /** Clasifica la reunión según la cantidad de asistentes. */
@@ -89,7 +92,7 @@ public final class PorcionesCalculator {
                 + ", a razón de " + format(porcionesPorPersona) + " "
                 + plural(porcionesPorPersona, "porción", "porciones") + " por persona."
                 + " Se sugiere preparar " + format(withReserve(total))
-                + " para cubrir un 10 % de reserva.";
+                + " para cubrir un " + PORCENTAJE_RESERVA + " % de reserva.";
     }
 
     private static String plural(long amount, String singular, String pluralForm) {

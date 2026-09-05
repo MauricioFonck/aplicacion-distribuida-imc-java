@@ -48,7 +48,7 @@ Maven en NetBeans.
 | `scripts/run-client.sh` | Inicia el cliente. |
 | `docs/informe-academico.md` | Informe del parcial: objetivo, arquitectura y conclusiones. |
 | `docs/relacion-con-el-proyecto-base.md` | Qué se reutilizó del proyecto de `main` y qué es propio. |
-| `docs/resultado-pruebas.md` | Plan de pruebas y comprobación manual. |
+| `docs/resultado-pruebas.md` | Resultados de las pruebas ejecutadas y comprobación manual. |
 | `docs/arquitectura.puml` | Diagrama de componentes de la solución. |
 
 ## Compilar y probar

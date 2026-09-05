@@ -37,7 +37,7 @@ reutilizado y de lo que es propio del parcial se encuentra en
 
 | Herramienta | Uso |
 |---|---|
-| Java SE 8 | Lenguaje y biblioteca estándar (`java.net`, `java.io`, `javax.swing`). |
+| Java SE 8 | Lenguaje y biblioteca estándar (`java.net`, `java.io`, `javax.swing`). Se compila con `--release 8`; la verificación se realizó con JDK 26. |
 | Swing | Interfaces gráficas del cliente y del servidor. |
 | Sockets TCP | Transporte de las solicitudes y respuestas. |
 | Maven | Descriptor `pom.xml` para abrir el proyecto en NetBeans. |

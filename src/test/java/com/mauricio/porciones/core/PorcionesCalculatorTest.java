@@ -15,6 +15,7 @@ public final class PorcionesCalculatorTest {
         shouldRejectValuesOverTheLimit();
         shouldNotOverflowWithTheLargestInput();
         shouldAddTheReserveMargin();
+        shouldNotRoundUpWhenTheReserveIsExact();
         shouldClassifyTheMeeting();
         shouldFormatIntegerValues();
         System.out.println("Todas las pruebas de PorcionesCalculator pasaron.");
@@ -72,8 +73,23 @@ public final class PorcionesCalculatorTest {
                 "La reserva debería redondear hacia arriba.");
         assertEquals(11L, PorcionesCalculator.withReserve(10L),
                 "La reserva de 10 porciones no coincide.");
+        assertEquals(132L, PorcionesCalculator.withReserve(120L),
+                "La reserva del ejemplo del README no coincide.");
         assertEquals(0L, PorcionesCalculator.withReserve(0L),
                 "Sin porciones no debería haber reserva.");
+    }
+
+    /**
+     * La reserva debe calcularse con aritmética entera. Con coma flotante,
+     * {@code Math.ceil(200 * 1.1)} devuelve 221 porque el producto es 220.00000000000003.
+     */
+    private static void shouldNotRoundUpWhenTheReserveIsExact() {
+        assertEquals(220L, PorcionesCalculator.withReserve(200L),
+                "Una reserva exacta no debería redondear hacia arriba.");
+        assertEquals(1_100L, PorcionesCalculator.withReserve(1_000L),
+                "La reserva de 1.000 porciones debería ser exacta.");
+        assertEquals(11_000_000L, PorcionesCalculator.withReserve(10_000_000L),
+                "La reserva del caso máximo debería ser exacta.");
     }
 
     private static void shouldClassifyTheMeeting() {
