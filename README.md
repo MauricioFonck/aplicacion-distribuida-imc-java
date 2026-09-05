@@ -4,6 +4,17 @@ Este proyecto contiene un cliente y un servidor desarrollados en Java. Ambos pro
 
 > El IMC es un dato orientativo y no reemplaza la valoración de un profesional de la salud.
 
+## Ramas del repositorio
+
+Este repositorio aloja más de un proyecto. **Cada rama contiene una aplicación distinta** y las ramas de los parciales **no se mezclan hacia `main`**: la rama `main` es la base de código de referencia a partir de la cual se desarrollan los parciales, y se conserva sin cambios funcionales.
+
+| Rama | Proyecto | Función |
+|---|---|---|
+| [`main`](../../tree/main) | Aplicación distribuida para calcular el IMC (este documento). | Base de código y documentación de referencia. |
+| [`parcial-corte-1`](../../tree/parcial-corte-1) | **Parcial Corte 1** — Ejercicio 35: porciones de comida para una reunión. | Entrega del primer corte, desarrollada sobre esta base. |
+
+El detalle del parcial se encuentra más abajo, en [Parcial Corte 1](#parcial-corte-1).
+
 ## Requisitos
 
 Se necesita un JDK 8 o una versión posterior. El proyecto utiliza solamente clases de la biblioteca estándar de Java. También incluye un archivo `pom.xml` para abrirlo como proyecto Maven en NetBeans.
@@ -81,6 +92,56 @@ Los archivos `docs/arquitectura.puml` y `docs/arquitectura.png` muestran el fluj
 ## Abrir el proyecto en NetBeans
 
 En NetBeans se puede seleccionar **File > Open Project** y elegir la carpeta del repositorio. Si se utiliza el archivo `pom.xml`, NetBeans reconocerá el proyecto como una aplicación Java. Las clases principales para ejecutar son `com.mauricio.imc.server.ServerWindow` y `com.mauricio.imc.client.ClientWindow`.
+
+## Parcial Corte 1
+
+El código del **Parcial Corte 1** no se encuentra en `main`. Está publicado en la rama [`parcial-corte-1`](../../tree/parcial-corte-1) de este mismo repositorio.
+
+### Enunciado del parcial
+
+> **Ejercicio 35: Porciones de comida para una reunión.** Desarrolle una aplicación que permita estimar la cantidad de porciones de comida necesarias para una reunión. El cliente solicitará la cantidad de personas que asistirán y la cantidad de porciones previstas por persona. El servidor calculará el total de porciones necesarias y devolverá el resultado.
+
+### Relación con este proyecto
+
+El parcial **se desarrolló tomando como base la documentación y la base de código de este proyecto de la rama `main`**. No se partió de un repositorio vacío: la aplicación del IMC descrita en este documento aportó la arquitectura, las decisiones de diseño y el estándar de documentación que la entrega del parcial conserva.
+
+De este proyecto se reutilizaron los siguientes elementos:
+
+| Elemento de `main` | Uso en el parcial |
+|---|---|
+| Separación en los paquetes `core`, `server` y `client`. | Se mantiene con el paquete raíz `com.mauricio.porciones`. |
+| `ImcCalculator` (cálculo y validación en una clase utilitaria). | Molde de `PorcionesCalculator`. |
+| `ImcResult` (resultado inmutable con estado válido o inválido). | Molde de `PorcionesResult`. |
+| `ImcProtocol` (protocolo binario sobre `DataInputStream` y `DataOutputStream`). | Molde de `PorcionesProtocol`. |
+| `ImcServer` (servidor TCP con hilo aceptador, un hilo por cliente y log con marca de tiempo). | Molde de `PorcionesServer`. |
+| `ImcClient` (cliente TCP con tiempos de espera de conexión y de lectura). | Molde de `PorcionesClient`. |
+| `ServerWindow` y `ClientWindow` (ventanas Swing con pestañas y `SwingWorker`). | Se conservan la estructura visual y el manejo de hilos de la interfaz. |
+| Pruebas ejecutables con `main`, sin dependencias externas. | Se conserva el mismo estilo de pruebas. |
+| Scripts `compile.sh`, `test.sh`, `run-server.sh` y `run-client.sh`. | Se conservan y se adaptan a las clases del parcial. |
+| Estructura de `docs/` y esquema de este `README.md`. | Se conserva el mismo esquema de documentación. |
+
+Lo que cambia en el parcial es la regla de negocio y el protocolo que la transporta:
+
+| Aspecto | `main` (IMC) | `parcial-corte-1` (porciones) |
+|---|---|---|
+| Cálculo | `peso / altura²` | `personas × porciones por persona` |
+| Solicitud | `float` peso + `float` altura | `int` personas + `int` porciones por persona |
+| Respuesta | `float` resultado + `UTF` mensaje | `boolean` validez + `long` total + `UTF` mensaje |
+| Puerto por defecto | `9007` | `9008` |
+| Paquete raíz | `com.mauricio.imc` | `com.mauricio.porciones` |
+
+La rama del parcial documenta además una mejora sobre el protocolo de esta base: al incluir un indicador de validez en la respuesta, el cliente puede distinguir un cálculo aceptado de una solicitud rechazada por el servidor.
+
+### Cómo consultar el parcial
+
+```bash
+git fetch origin
+git checkout parcial-corte-1
+```
+
+La documentación de la entrega está en el `README.md` de esa rama y en sus archivos `docs/informe-academico.md`, `docs/relacion-con-el-proyecto-base.md` y `docs/resultado-pruebas.md`.
+
+> Esta rama `main` **no recibe mezclas** desde `parcial-corte-1`. Ambos proyectos evolucionan por separado.
 
 ## Uso académico
 
