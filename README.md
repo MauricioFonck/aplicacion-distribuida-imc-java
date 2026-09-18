@@ -12,8 +12,9 @@ Este repositorio aloja más de un proyecto. **Cada rama contiene una aplicación
 |---|---|---|
 | [`main`](../../tree/main) | Aplicación distribuida para calcular el IMC (este documento). | Base de código y documentación de referencia. |
 | [`parcial-corte-1`](../../tree/parcial-corte-1) | **Parcial Corte 1** — Ejercicio 35: porciones de comida para una reunión. | Entrega del primer corte, desarrollada sobre esta base. |
+| [`actividad-corte-2`](../../tree/actividad-corte-2) | **Actividad Corte 2** — Ejercicio 35 con protocolo UDP y arquitectura hexagonal. | Entrega del segundo corte, desarrollada sobre `parcial-corte-1`. |
 
-El detalle del parcial se encuentra más abajo, en [Parcial Corte 1](#parcial-corte-1).
+El detalle de cada entrega se encuentra más abajo, en [Parcial Corte 1](#parcial-corte-1) y [Actividad Corte 2](#actividad-corte-2).
 
 ### Nota sobre el historial del repositorio
 
@@ -148,6 +149,39 @@ git checkout parcial-corte-1
 La documentación de la entrega está en el `README.md` de esa rama y en sus archivos `docs/informe-academico.md`, `docs/relacion-con-el-proyecto-base.md` y `docs/resultado-pruebas.md`.
 
 > Esta rama `main` **no recibe mezclas** desde `parcial-corte-1`. Ambos proyectos evolucionan por separado.
+
+## Actividad Corte 2
+
+El código de la **Actividad Corte 2** tampoco se encuentra en `main`. Está publicado en la rama [`actividad-corte-2`](../../tree/actividad-corte-2) de este mismo repositorio.
+
+### Enunciado de la actividad
+
+Se resuelve el mismo **Ejercicio 35** del primer corte (porciones de comida para una reunión), pero ahora la comunicación entre el cliente y el servidor usa el protocolo **UDP/IP** y el código se organiza con **arquitectura hexagonal**, tomando como referencia los repositorios de ejemplo del IMC entregados en clase ([servidor](https://github.com/arrietajohn/imc-udp-server-java-hexagonal) y [cliente](https://github.com/arrietajohn/imc-udp-client-java-hexagonal)).
+
+### Relación con las otras ramas
+
+La rama `actividad-corte-2` parte de `parcial-corte-1`. De la entrega del primer corte conserva la regla de negocio, los límites de validación, el margen de reserva, el estilo de las ventanas Swing, las pruebas sin dependencias externas y los scripts. Lo que cambia es el transporte y la organización del código:
+
+| Aspecto | `parcial-corte-1` | `actividad-corte-2` |
+|---|---|---|
+| Protocolo de transporte | TCP (`ServerSocket` y `Socket`) | UDP (`DatagramSocket` y `DatagramPacket`) |
+| Formato de los mensajes | Binario con `DataInputStream` y `DataOutputStream` | Texto delimitado: `CALCULAR;personas;porciones` → `OK_CALCULO;total;reserva;clasificación;mensaje` |
+| Organización | Paquetes `core`, `server` y `client` en un solo proyecto | Proyectos `servidor/` y `cliente/`, cada uno con las capas `dominio`, `aplicacion`, `adaptadores` y `entrypoint` |
+| Atención de clientes | Un hilo por conexión | Un solo hilo receptor de datagramas |
+| Respuesta ausente | La conexión TCP informa el fallo | Tiempo de espera de 3 segundos en el cliente |
+| Versión de Java | 8 | 17 (`record` y expresiones `switch`) |
+| Puerto por defecto | `9008` | `9008` |
+
+### Cómo consultar la actividad
+
+```bash
+git fetch origin
+git checkout actividad-corte-2
+```
+
+La documentación de la entrega está en el `README.md` de esa rama y en sus archivos `docs/informe-academico.md`, `docs/resultado-pruebas.md` y `docs/arquitectura.puml`.
+
+> Esta rama `main` **no recibe mezclas** desde `actividad-corte-2`.
 
 ## Uso académico
 
