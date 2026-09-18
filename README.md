@@ -1,25 +1,32 @@
-# Parcial Corte 1 — Porciones de comida para una reunión
+# Actividad Corte 2 — Porciones de comida para una reunión (UDP + arquitectura hexagonal)
 
 Aplicación distribuida cliente–servidor en Java que estima la cantidad de porciones de comida
-necesarias para una reunión. El cliente solicita la cantidad de personas que asistirán y las
-porciones previstas por persona; el servidor recibe los datos por un socket TCP, calcula el
-total de porciones y devuelve el resultado.
+necesarias para una reunión. Es el mismo ejercicio del primer corte, pero ahora la comunicación
+se hace con el protocolo **UDP/IP** y el código se organiza con **arquitectura hexagonal**
+(puertos y adaptadores).
 
-> **Rama:** `parcial-corte-1` · **Enunciado:** Ejercicio 35 · **Base:** rama `main` de este
-> mismo repositorio.
+> **Rama:** `actividad-corte-2` · **Enunciado:** Ejercicio 35 · **Base:** rama
+> `parcial-corte-1` de este mismo repositorio.
 
 ## Origen del proyecto
 
-Este parcial se desarrolló **a partir de la base de código y la documentación del proyecto
-que se encuentra en la rama `main`** de este repositorio (aplicación distribuida para
-calcular el IMC). De ese proyecto se conservaron la arquitectura por capas, el diseño del
-servidor TCP multihilo, el estilo del protocolo binario, la estructura de las ventanas Swing
-y el esquema de pruebas y documentación; sobre esa base se implementó la regla de negocio del
-Ejercicio 35.
+Esta actividad parte de la entrega del primer corte, que está en la rama
+[`parcial-corte-1`](../../tree/parcial-corte-1). De ella se conservaron la regla de negocio
+(total, clasificación de la reunión y reserva del 10 %), los límites de validación, el estilo de
+las ventanas Swing y la forma de compilar y probar con scripts. Lo que cambió es el transporte
+(de TCP a UDP) y la organización interna del código (de tres paquetes a capas hexagonales).
 
-La rama `main` permanece intacta y **esta rama nunca se mezcla hacia `main`**: cada rama del
-repositorio contiene un proyecto distinto. El detalle de lo reutilizado y de lo que es propio
-del parcial está en [`docs/relacion-con-el-proyecto-base.md`](docs/relacion-con-el-proyecto-base.md).
+La estructura de capas, puertos y adaptadores sigue los repositorios de ejemplo entregados en
+clase para el cálculo del IMC:
+
+- Servidor: <https://github.com/arrietajohn/imc-udp-server-java-hexagonal>
+- Cliente: <https://github.com/arrietajohn/imc-udp-client-java-hexagonal>
+
+Igual que en esos ejemplos, el servidor y el cliente son **dos proyectos independientes**
+(carpetas `servidor/` y `cliente/`): no comparten ninguna clase y solo se entienden a través del
+protocolo de texto que viaja en los datagramas.
+
+Las ramas `main` y `parcial-corte-1` permanecen intactas y esta rama no se mezcla hacia ellas.
 
 ## Enunciado
 
@@ -30,37 +37,89 @@ del parcial está en [`docs/relacion-con-el-proyecto-base.md`](docs/relacion-con
 
 ## Requisitos
 
-Se necesita un JDK 8 o una versión posterior. El proyecto utiliza solamente clases de la
-biblioteca estándar de Java. También incluye un archivo `pom.xml` para abrirlo como proyecto
-Maven en NetBeans.
+Se necesita un JDK 17 o una versión posterior, porque el código usa `record` y expresiones
+`switch`. El proyecto utiliza solamente clases de la biblioteca estándar de Java. Cada proyecto
+incluye un `pom.xml` para abrirlo como proyecto Maven en NetBeans o IntelliJ IDEA.
 
 ## Organización del proyecto
 
 | Carpeta o archivo | Función |
 |---|---|
-| `src/main/java/com/mauricio/porciones/core` | Cálculo de porciones, resultado de dominio y protocolo. |
-| `src/main/java/com/mauricio/porciones/server` | Servidor TCP e interfaz del servidor. |
-| `src/main/java/com/mauricio/porciones/client` | Cliente TCP e interfaz del cliente. |
-| `src/test/java/com/mauricio/porciones/core` | Pruebas del cálculo y de la conexión TCP. |
-| `scripts/compile.sh` | Compila las clases en la carpeta `out`. |
-| `scripts/test.sh` | Compila y ejecuta las pruebas. |
+| `servidor/` | Proyecto del servidor UDP. |
+| `cliente/` | Proyecto del cliente UDP. |
+| `scripts/compile.sh` | Compila los dos proyectos en la carpeta `out`. |
+| `scripts/test.sh` | Compila y ejecuta todas las pruebas. |
 | `scripts/run-server.sh` | Inicia el servidor. |
 | `scripts/run-client.sh` | Inicia el cliente. |
-| `docs/informe-academico.md` | Informe del parcial: objetivo, arquitectura y conclusiones. |
-| `docs/relacion-con-el-proyecto-base.md` | Qué se reutilizó del proyecto de `main` y qué es propio. |
+| `docs/informe-academico.md` | Informe de la actividad: UDP, arquitectura hexagonal y conclusiones. |
 | `docs/resultado-pruebas.md` | Resultados de las pruebas ejecutadas y comprobación manual. |
-| `docs/arquitectura.puml` | Diagrama de componentes de la solución. |
+| `docs/arquitectura.puml` | Diagrama de la arquitectura hexagonal del servidor y del cliente. |
+
+Dentro de cada proyecto el paquete raíz es `com.mauricio.porciones` y las capas son las mismas:
+
+| Paquete | Capa | Contenido |
+|---|---|---|
+| `dominio` | Núcleo | Objetos de valor, modelos, enumeraciones, excepciones y **puertos de salida**. No conoce Swing ni sockets. |
+| `aplicacion` | Núcleo | Casos de uso (servicios), **puertos de entrada**, DTO y mappers. |
+| `adaptadores` | Infraestructura | Implementaciones de los puertos de salida: el canal UDP y las notificaciones. |
+| `entrypoint` | Infraestructura | Lo que dispara los casos de uso: la ventana Swing y, en el servidor, el receptor de datagramas. |
+| `com.mauricio.Main` | Arranque | *Composition root*: crea las clases concretas y las conecta entre sí. |
+
+### Servidor
+
+```
+servidor/src/main/java/com/mauricio/
+├── Main.java
+└── porciones/
+    ├── dominio/
+    │   ├── vo/            Asistentes, PorcionesPorPersona, Destinatario, PuertoRed
+    │   ├── modelos/       Estimacion, Resultado, RespuestaCliente, EventoServidor
+    │   ├── enums/         ClasificacionReunion, TipoRespuesta, EstadoServidor
+    │   ├── excepciones/   DominioException y sus especializaciones
+    │   └── puertos/salida/  PuertoSalidaRed, PuertoNotificacionEvento, ControladorServidorRedPort
+    ├── aplicacion/
+    │   ├── puertos/entrada/ ProcesarPeticionUdpInputPort, GestionarServidorInputPort, CalcularPorcionesInputPort
+    │   ├── servicios/     ProcesarPeticionUdpService, GestionarServidorService, CalcularPorcionesService
+    │   ├── dto/  mapper/  excepciones/
+    ├── adaptadores/red/   CanalUdp, AdaptadorSalidaUdp, AdaptadorControlServidorRed,
+    │                      AdaptadorNotificacionEvento, UdpNetworkMapper, UdpResponse, RedUtil
+    └── entrypoint/
+        ├── udp/           ReceptorPeticionesUdp
+        └── gui/           ServidorFrame
+```
+
+### Cliente
+
+```
+cliente/src/main/java/com/mauricio/
+├── Main.java
+└── porciones/
+    ├── dominio/
+    │   ├── vo/            Asistentes, PorcionesPorPersona, DestinoServidor
+    │   ├── modelos/       DatosReunion, ResultadoPorciones, EventoCliente
+    │   ├── enums/         EstadoConexion
+    │   ├── excepciones/
+    │   └── puertos/salida/  ClienteUdpPort, PuertoNotificacionCliente
+    ├── aplicacion/
+    │   ├── puertos/entrada/ GestionarConexionInputPort, CalcularPorcionesInputPort
+    │   ├── servicios/     ClientePorcionesService
+    │   ├── dto/  mapper/  excepciones/
+    ├── adaptadores/
+    │   ├── red/           CanalUdp, AdaptadorClienteUdp, ProtocoloUdpMapper
+    │   └── notificacion/  AdaptadorNotificacionCliente, ObservadorCliente
+    └── entrypoint/gui/    ClienteFrame
+```
 
 ## Compilar y probar
 
-Desde una terminal situada en la carpeta principal del proyecto:
+Desde una terminal situada en la carpeta principal del repositorio:
 
 ```bash
 ./scripts/test.sh
 ```
 
-El script compila las clases de producción y de prueba con `javac --release 8`. Después
-ejecuta la prueba del cálculo y la prueba de integración TCP.
+El script compila los dos proyectos con `javac --release 17` y ejecuta sus pruebas: dominio,
+casos de uso, adaptadores e integración con sockets UDP reales en la máquina local.
 
 ## Ejecutar la aplicación
 
@@ -70,24 +129,24 @@ Primero se inicia el servidor:
 ./scripts/run-server.sh
 ```
 
-En la ventana del servidor se deja el puerto `9008` y se pulsa **INICIAR**. En otra terminal
-se inicia el cliente:
+En la ventana del servidor se deja el puerto `9008` y se pulsa **INICIAR**. En otra terminal se
+inicia el cliente:
 
 ```bash
 ./scripts/run-client.sh
 ```
 
-En la ventana del cliente se escribe `localhost` como dirección y `9008` como puerto, y se
-pulsa **CONECTAR**. En la pestaña **CALCULAR PORCIONES** se introducen la cantidad de personas
-y las porciones por persona.
+En la ventana del cliente se escribe `localhost` como dirección y `9008` como puerto, y se pulsa
+**CONECTAR**. En la pestaña **CALCULAR PORCIONES** se introducen la cantidad de personas y las
+porciones por persona.
 
 Por ejemplo, con `40` personas y `3` porciones por persona, el total es `120` porciones y la
-sugerencia con el margen de reserva es `132`. La misma conexión puede utilizarse para realizar
-varios cálculos.
+sugerencia con el margen de reserva es `132`. Se pueden abrir varios clientes a la vez: el
+servidor los atiende a todos por el mismo socket.
 
 Para trabajar con dos equipos de la misma red, el servidor se ejecuta en uno de ellos y el
-cliente utiliza la dirección IP local del equipo servidor. En ese caso se debe permitir el
-puerto elegido en el firewall.
+cliente utiliza la dirección IP que muestra la ventana del servidor. En ese caso se debe permitir
+el puerto **UDP** elegido en el firewall.
 
 ## Regla de cálculo
 
@@ -100,45 +159,58 @@ El servidor admite únicamente enteros mayores que cero, con un máximo de `100.
 (`10.000.000` de porciones) no produce desbordamiento.
 
 Además del total, el servidor clasifica la reunión según la cantidad de asistentes (pequeña,
-mediana, grande o evento masivo) y sugiere preparar un 10 % adicional como margen de reserva.
+mediana, grande o evento masivo) y sugiere preparar un 10 % adicional como margen de reserva,
+redondeado hacia arriba con aritmética entera.
+
+La regla vive en el dominio del servidor (`Estimacion`, `Asistentes`, `PorcionesPorPersona`) y no
+depende de la red: se prueba sin abrir ningún socket.
 
 ## Protocolo de comunicación
 
-La solicitud enviada por el cliente contiene los siguientes valores, en este orden:
+Cada mensaje es un texto en UTF-8 que viaja dentro de **un datagrama UDP**. Los campos se separan
+con punto y coma.
 
-| Orden | Tipo | Dato |
+| Petición del cliente | Respuesta del servidor |
+|---|---|
+| `CONECTAR` | `CONECTADO_OK;mensaje` |
+| `CALCULAR;personas;porcionesPorPersona` | `OK_CALCULO;total;totalConReserva;clasificación;mensaje` |
+| `DESCONECTAR` | `DESCONECTADO_OK;mensaje` |
+| Cualquier petición inválida | `ERROR;motivo` |
+
+Ejemplo:
+
+```
+cliente  → CALCULAR;40;3
+servidor → OK_CALCULO;120;132;Reunión mediana;Reunión mediana: 120 porciones para 40 personas, ...
+```
+
+### Diferencias con la versión TCP del primer corte
+
+| Aspecto | `parcial-corte-1` (TCP) | `actividad-corte-2` (UDP) |
 |---|---|---|
-| 1 | `int` | Cantidad de personas que asistirán. |
-| 2 | `int` | Cantidad de porciones previstas por persona. |
-
-La respuesta del servidor contiene:
-
-| Orden | Tipo | Dato |
-|---|---|---|
-| 1 | `boolean` | Indica si el cálculo fue aceptado. |
-| 2 | `long` | Total de porciones necesarias (`0` cuando la solicitud se rechaza). |
-| 3 | `UTF` | Mensaje con la clasificación o con el motivo del rechazo. |
-
-El servidor atiende cada conexión en un hilo independiente y una misma conexión admite varias
-solicitudes consecutivas. Una solicitud rechazada no cierra la conexión. El cliente utiliza
-`SwingWorker` para que las operaciones de red no congelen la ventana.
+| Clases de Java | `ServerSocket` y `Socket` | `DatagramSocket` y `DatagramPacket` |
+| Conexión | Real: `accept()` crea un socket por cliente. | No existe. Un único socket recibe los datagramas de todos los clientes. |
+| «Conectar» | Establece la conexión TCP. | Es un saludo lógico: se envía `CONECTAR` y se espera `CONECTADO_OK` para saber que el servidor está vivo. |
+| Destino de la respuesta | El mismo flujo de la conexión. | La IP y el puerto se leen de cada datagrama recibido (`Destinatario`). |
+| Hilos del servidor | Un hilo por cliente conectado. | Un solo hilo receptor. |
+| Formato | Binario con `DataInputStream`/`DataOutputStream`. | Texto delimitado dentro del datagrama. |
+| Entrega | Garantizada y ordenada por TCP. | No garantizada: el cliente usa un tiempo de espera de 3 segundos (`setSoTimeout`) y avisa si no hay respuesta. |
 
 ## Validaciones
 
-La aplicación valida el puerto, la dirección del servidor, la cantidad de personas y las
-porciones por persona antes de utilizarlos, y controla el caso en que el usuario intenta
-calcular sin estar conectado. El servidor vuelve a validar todos los datos recibidos, porque
-no debe confiar en la validación hecha en el cliente.
+El cliente valida el host, el puerto, la cantidad de personas y las porciones por persona con sus
+objetos de valor antes de enviar nada, y controla el caso en que el usuario intenta calcular sin
+estar conectado. El servidor vuelve a validar todos los datos recibidos con sus propios objetos de
+valor, porque no debe confiar en la validación hecha en el cliente, y responde `ERROR;motivo` sin
+dejar de atender a los demás.
 
-## Abrir el proyecto en NetBeans
+## Abrir el proyecto en un IDE
 
-En NetBeans se puede seleccionar **File > Open Project** y elegir la carpeta del repositorio.
-Si se utiliza el archivo `pom.xml`, NetBeans reconocerá el proyecto como una aplicación Java.
-Las clases principales para ejecutar son `com.mauricio.porciones.server.ServerWindow` y
-`com.mauricio.porciones.client.ClientWindow`.
+En NetBeans o IntelliJ IDEA se abren por separado las carpetas `servidor` y `cliente`; cada una
+tiene su `pom.xml`. En ambos proyectos la clase principal es `com.mauricio.Main`.
 
 ## Uso académico
 
-El proyecto fue elaborado como entrega del Parcial Corte 1, para practicar interfaces Swing,
-programación con sockets TCP, manejo de hilos, validación de datos y separación de
-responsabilidades en una aplicación distribuida.
+El proyecto fue elaborado como entrega de la actividad del segundo corte, para practicar la
+programación con sockets UDP, la arquitectura hexagonal, las interfaces Swing, el manejo de hilos
+y la validación de datos en una aplicación distribuida.

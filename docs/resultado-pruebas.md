@@ -6,12 +6,10 @@
 |---|---|
 | Sistema operativo | Windows 11 (64 bits). |
 | JDK | Java 26.0.2.1 (`javac 26.0.2.1`). |
-| Nivel de compilación | `javac --release 8`, para conservar la compatibilidad con Java 8. |
+| Nivel de compilación | `javac --release 17`. Con `-Xlint:all` la compilación no emite advertencias. |
 | Dependencias externas | Ninguna. Las pruebas son clases con método `main`. |
-| Puerto del servidor | `9008` en ejecución normal, `19008` en la prueba de integración. |
+| Puertos | `9008` en ejecución normal; `19008` (servidor) y `19018`–`19019` (cliente) en las pruebas de integración. |
 | Comando | `./scripts/test.sh` |
-
-La compilación emite tres avisos del JDK (`source value 8 is obsolete`, `target value 8 is obsolete`) porque las versiones recientes del compilador marcan el nivel 8 como obsoleto. Son advertencias informativas: no impiden la compilación ni la ejecución.
 
 ## Resultado general
 
@@ -19,108 +17,159 @@ El comando `./scripts/test.sh` terminó correctamente:
 
 ```
 Compilación completada en /c/Users/andre/Music/aplicacion-distribuida-imc-java/out
-Todas las pruebas de PorcionesCalculator pasaron.
-La prueba de integración TCP pasó.
+== Servidor ==
+Todas las pruebas de DominioTest pasaron.
+Todas las pruebas de AplicacionTest pasaron.
+Todas las pruebas de AdaptadoresTest pasaron.
+Todas las pruebas de RedUdpIntegracionTest pasaron.
+== Cliente ==
+Todas las pruebas de DominioYProtocoloTest pasaron.
+Todas las pruebas de ClienteServiceTest pasaron.
+Todas las pruebas de RedIntegracionTest pasaron.
 Todas las pruebas pasaron.
 ```
 
-## Pruebas del cálculo (`PorcionesCalculatorTest`)
+## Servidor
+
+### Dominio (`DominioTest`)
 
 | Prueba | Entrada | Resultado esperado | Resultado |
 |---|---|---|---|
-| Multiplicación básica | 25 personas, 3 porciones | Válido, total `75`, clasificación «Reunión mediana». | Correcto. |
-| Una sola persona | 1 persona, 1 porción | Válido, total `1`, mensaje en singular. | Correcto. |
-| Valores no positivos | 0 personas, 3 porciones | Inválido, mensaje «deben ser mayores que 0». | Correcto. |
-| Valores negativos | 10 personas, −2 porciones | Inválido, total `0`. | Correcto. |
-| Límite de personas | 100.001 personas, 1 porción | Inválido. | Correcto. |
-| Límite de porciones | 10 personas, 101 porciones | Inválido. | Correcto. |
-| Caso máximo sin desbordamiento | 100.000 personas, 100 porciones | Válido, total `10.000.000`. | Correcto. |
+| Multiplicación básica | 25 personas, 3 porciones | Total `75`, reserva `83`, «Reunión mediana», mensaje sin `;`. | Correcto. |
+| Una sola persona | 1 persona, 1 porción | Total `1`, mensaje en singular. | Correcto. |
+| Valores no positivos | 0 personas; −2 porciones | `AsistentesIncorrectosException`; `PorcionesIncorrectasException`. | Correcto. |
+| Límites | 100.001 personas; 101 porciones | Se rechazan. | Correcto. |
+| Caso máximo sin desbordamiento | 100.000 personas, 100 porciones | Total `10.000.000`, reserva `11.000.000`, «Evento masivo». | Correcto. |
 | Margen de reserva | 75, 10, 120 y 0 porciones | `83`, `11`, `132` y `0`. | Correcto. |
-| Reserva exacta sin redondeo de más | 200, 1.000 y 10.000.000 porciones | `220`, `1.100` y `11.000.000`. | Correcto. |
+| Reserva exacta sin redondeo de más | 200 y 1.000 porciones | `220` y `1.100`. | Correcto. |
 | Clasificación | 10, 11, 200 y 201 personas | Pequeña, mediana, grande y evento masivo. | Correcto. |
-| Formato de enteros | 75 y 10.000 | `75` sin separador y `10.000` con separador de miles. | Correcto. |
+| Estimación incompleta | Personas o porciones nulas | `EstimacionInvalidaException`. | Correcto. |
+| Invariantes del resultado | Total 0, reserva menor que el total, sin clasificación, sin mensaje | `ResultadoInvalidoException`. | Correcto. |
+| Destinatario y puerto | IP vacía, puerto 0, puertos 1023 y 65536 | Se rechazan; el endpoint queda sin espacios. | Correcto. |
+| Respuestas al cliente | Cálculo sin resultado, respuesta sin destinatario | `RespuestaInvalidaException`. | Correcto. |
 
-### Nota sobre el cálculo de la reserva
+### Casos de uso (`AplicacionTest`)
 
-La primera versión de `PorcionesCalculator.withReserve` calculaba la reserva con coma flotante, mediante `Math.ceil(total * 1.1)`. Esa expresión falla justamente en los casos en que el resultado debería ser exacto: en `double`, `200 * 1.1` vale `220.00000000000003`, de modo que `Math.ceil` devolvía `221` en lugar de `220`.
+Los puertos de salida se reemplazan por listas en memoria; ninguna de estas pruebas abre un socket.
 
-La versión definitiva usa aritmética entera, que es exacta:
-
-```java
-long reserva = (total * PORCENTAJE_RESERVA + 99L) / 100L;
-return total + reserva;
-```
-
-Se agregó la prueba `shouldNotRoundUpWhenTheReserveIsExact` para dejar cubierta esa regresión.
-
-## Prueba de integración TCP (`PorcionesSocketIntegrationTest`)
-
-Levanta un servidor real en el puerto `19008`, conecta un cliente real y verifica el intercambio completo de mensajes:
-
-| Paso | Entrada | Resultado esperado | Resultado |
+| Prueba | Petición | Resultado esperado | Resultado |
 |---|---|---|---|
-| Primera solicitud | 25 personas, 3 porciones | Válido, total `75`, mensaje con «mediana». | Correcto. |
-| Segunda solicitud en la misma conexión | 300 personas, 2 porciones | Válido, total `600`, mensaje con «masivo». | Correcto. |
-| Solicitud rechazada | 0 personas, 5 porciones | Inválido, total `0`, sin cierre de la conexión. | Correcto. |
-| Solicitud posterior al rechazo | 8 personas, 4 porciones | Válido, total `32`. | Correcto. |
-| Estado del servidor | — | Sigue activo y registró eventos en el log. | Correcto. |
+| Caso de uso de cálculo | 40 y 3 | DTO con `120`, `132` y «Reunión mediana». | Correcto. |
+| Comandos nulos | `null` en los mappers | `ComandoInvalidoException`. | Correcto. |
+| Saludo | `CONECTAR` | Respuesta `CONECTADO` dirigida a `127.0.0.1:5000` y un evento. | Correcto. |
+| Despedida | `DESCONECTAR` | Respuesta `DESCONECTADO`. | Correcto. |
+| Cálculo | `CALCULAR;40;3` | `OK_CALCULO` con `120` y `132`; el evento describe lo recibido y lo enviado. | Correcto. |
+| Tolerancia de formato | `  calcular; 10 ; 2  ` | Total `20`. | Correcto. |
+| Mensaje vacío | Solo espacios | `ERROR` «Mensaje vacío». | Correcto. |
+| Comando desconocido | `SUMAR;1;2` | `ERROR` «Comando no reconocido». | Correcto. |
+| Formato incorrecto | `CALCULAR;40` y `CALCULAR;40;3;9` | `ERROR` «Formato inválido». | Correcto. |
+| Valores no numéricos | `CALCULAR;cuarenta;3` y `CALCULAR;40;2.5` | `ERROR` «números enteros». | Correcto. |
+| Valores fuera del dominio | `CALCULAR;0;3` y `CALCULAR;10;101` | `ERROR` con el motivo del dominio. | Correcto. |
+| Ciclo de vida | Iniciar en `9008` y detener | Estados `EN_LINEA` y `DETENIDO`, dos eventos. | Correcto. |
+| Puerto inválido | Iniciar en `80` | `PuertoIncorrectoException` sin tocar la red. | Correcto. |
 
-Esta prueba confirma tres puntos: que el protocolo binario serializa y deserializa correctamente, que una misma conexión atiende varias solicitudes y que un rechazo del servidor no interrumpe la sesión del cliente.
+### Adaptadores (`AdaptadoresTest`)
 
-## Comprobación de extremo a extremo
+| Prueba | Resultado esperado | Resultado |
+|---|---|---|
+| Serialización del cálculo | `OK_CALCULO;120;132;Reunión mediana;...` con cinco campos, en UTF-8 y con la IP y el puerto de destino. | Correcto. |
+| Respuestas de sesión | `CONECTADO_OK;...` y `DESCONECTADO_OK;...`. | Correcto. |
+| Errores | `ERROR;motivo`; sin mensaje, `ERROR;Error desconocido.`. | Correcto. |
+| Respuesta nula | `RespuestaInvalidaException`. | Correcto. |
+| Notificaciones | Un observador registrado dos veces recibe cada aviso una sola vez; al removerlo deja de recibir. | Correcto. |
+| IP local | Siempre se resuelve alguna dirección. | Correcto. |
 
-Se ejecutó además un cliente contra un servidor real para verificar los valores que aparecen en el `README.md`. Salida obtenida:
+### Integración UDP (`RedUdpIntegracionTest`)
+
+Se arma el servidor completo sin ventana, se inicia en el puerto `19008` y se le envían datagramas
+desde un `DatagramSocket` de prueba.
+
+| Prueba | Resultado esperado | Resultado |
+|---|---|---|
+| Saludo y despedida | `CONECTADO_OK;` y `DESCONECTADO_OK;`. | Correcto. |
+| Cálculo | `CALCULAR;40;3` → `OK_CALCULO;120;132;Reunión mediana;...`. | Correcto. |
+| Caso máximo | `CALCULAR;100000;100` → `OK_CALCULO;10000000;11000000;...`. | Correcto. |
+| Peticiones inválidas | `CALCULAR;0;3`, `CALCULAR;abc;3` y `HOLA` → `ERROR;`. | Correcto. |
+| Continuidad | Después de un error, `CALCULAR;25;3` → `OK_CALCULO;75;83;`. | Correcto. |
+| Varios clientes | Dos sockets envían a la vez y cada uno recibe su propio resultado. | Correcto. |
+| Parada | El servidor y el receptor quedan detenidos. | Correcto. |
+| Puerto ocupado | Iniciar en un puerto en uso lanza `ServidorRedException`. | Correcto. |
+
+## Cliente
+
+### Dominio y protocolo (`DominioYProtocoloTest`)
+
+| Prueba | Resultado esperado | Resultado |
+|---|---|---|
+| Datos de la reunión | Se rechazan 0 y 100.001 personas, 0 y 101 porciones, y los datos nulos. | Correcto. |
+| Destino | Se rechazan el host vacío y los puertos 80 y 70000; el endpoint queda sin espacios. | Correcto. |
+| Mapper de comandos | Convierte a `DestinoServidor` y `DatosReunion` y propaga la validación. | Correcto. |
+| Serialización | 100.000 personas y 100 porciones → `CALCULAR;100000;100`. | Correcto. |
+| Saludo | Acepta `CONECTADO_OK;...`; rechaza `ERROR;...` y `null`. | Correcto. |
+| Interpretación del cálculo | Total `120`, reserva `132`, clasificación y mensaje. | Correcto. |
+| Mensaje con `;` | El mensaje final no se parte. | Correcto. |
+| Error del servidor | `ERROR;motivo` se convierte en excepción y conserva el motivo. | Correcto. |
+| Respuestas mal formadas | Vacía, con campos de menos, de otro tipo, total no numérico, reserva menor que el total. | Correcto. |
+
+### Casos de uso (`ClienteServiceTest`)
+
+| Prueba | Resultado esperado | Resultado |
+|---|---|---|
+| Conexión | Notifica `CONECTANDO`, `CONECTADO` y el evento. | Correcto. |
+| Fallo de conexión | Vuelve a `DESCONECTADO`, notifica el error y el futuro termina con `ClienteRedException`. | Correcto. |
+| Destino inválido | Se rechaza antes de notificar o usar la red. | Correcto. |
+| Cálculo | El puerto de red recibe objetos del dominio y se notifica el resultado. | Correcto. |
+| Fallo del cálculo | Se notifica el error. | Correcto. |
+| Datos inválidos | No llegan al puerto de red. | Correcto. |
+| Desconexión | Notifica `DESCONECTADO` y el evento. | Correcto. |
+
+### Integración UDP (`RedIntegracionTest`)
+
+El adaptador real del cliente se prueba contra un servidor UDP mínimo en el puerto `19018`.
+
+| Prueba | Resultado esperado | Resultado |
+|---|---|---|
+| Sesión completa | El servidor recibe `CONECTAR`, `CALCULAR;40;3`, `CALCULAR;25;3` y `DESCONECTAR`, en ese orden; los totales son `120` y `75`. | Correcto. |
+| Error del servidor | Se convierte en `ClienteRedException` con el motivo y la sesión sigue abierta. | Correcto. |
+| Calcular sin conectarse | `ClienteRedException`. | Correcto. |
+| Nadie responde | Con 300 ms de espera, la conexión a un puerto sin servidor falla y el cliente queda desconectado. | Correcto. |
+| Host inexistente | `ClienteRedException`. | Correcto. |
+
+## Comprobación entre procesos
+
+Además de las pruebas automáticas, se ejecutaron el servidor real y el cliente real en dos procesos
+de Java distintos, en el puerto `9008`, registrando las notificaciones de cada uno:
 
 ```
-40 personas x 3 porciones
-  valido = true
-  total  = 120
-  reserva= 132
-  mensaje= Reunión mediana: 120 porciones para 40 personas, a razón de 3 porciones
-           por persona. Se sugiere preparar 132 para cubrir un 10 % de reserva.
+[CLI] estado CONECTANDO localhost:9008
+[CLI] estado CONECTADO localhost:9008
+[CLI] resultado total=120, totalConReserva=132, clasificacion=Reunión mediana
+[CLI] resultado total=1, totalConReserva=2, clasificacion=Reunión pequeña
+[CLI] resultado total=10000000, totalConReserva=11000000, clasificacion=Evento masivo
+[CLI] estado DESCONECTADO
 
-0 personas x 5 porciones (invalida)
-  valido = false
-  total  = 0
-  mensaje= La cantidad de personas y las porciones por persona deben ser mayores que 0.
-
-caso maximo
-  valido = true
-  total  = 10.000.000
-  reserva= 11.000.000
+[SRV] estado EN_LINEA 9008
+[SRV] EVENTO 127.0.0.1 - conectado --> Solicitud de verificación recibida y aceptada
+[SRV] EVENTO 127.0.0.1 - datos recibidos (Personas: 40, Porciones por persona: 3) --> datos enviados (Total: 120, Con reserva: 132, Reunión mediana)
+[SRV] EVENTO 127.0.0.1 - datos recibidos (Personas: 1, Porciones por persona: 1) --> datos enviados (Total: 1, Con reserva: 2, Reunión pequeña)
+[SRV] EVENTO 127.0.0.1 - datos recibidos (Personas: 100000, Porciones por persona: 100) --> datos enviados (Total: 10.000.000, Con reserva: 11.000.000, Evento masivo)
+[SRV] EVENTO 127.0.0.1 - desconectado --> Cliente ha cerrado la sesión
+[SRV] estado DETENIDO 0
 ```
 
-El log del servidor registró cada solicitud, incluida la rechazada:
+Las dos ventanas (`./scripts/run-server.sh` y `./scripts/run-client.sh`) se abrieron sin errores en
+la consola.
 
-```
-[2026-09-04 20:44:57] Servidor iniciado en 192.168.1.50:29008
-[2026-09-04 20:44:57] Cliente conectado: /127.0.0.1:51684
-[2026-09-04 20:44:57] Solicitud atendida desde /127.0.0.1:51684: personas=40,
-                      porciones/persona=3, total=120
-[2026-09-04 20:44:57] Solicitud atendida desde /127.0.0.1:51684: personas=0,
-                      porciones/persona=5, total=rechazada (La cantidad de personas
-                      y las porciones por persona deben ser mayores que 0.)
-[2026-09-04 20:44:57] Servidor detenido
-[2026-09-04 20:44:57] Cliente desconectado: /127.0.0.1:51684
-```
+## Guion para probar con las ventanas
 
-## Comprobación de las interfaces gráficas
-
-Se instanciaron `ServerWindow` y `ClientWindow` dentro del hilo de despacho de eventos de Swing para verificar que la construcción de los paneles no produce errores:
-
-```
-ServerWindow construida: Servidor de porciones - TCP java.awt.Dimension[width=544,height=505]
-ClientWindow construida: Cliente de porciones - TCP java.awt.Dimension[width=400,height=334]
-Las dos ventanas se construyeron sin error.
-```
-
-## Comprobación manual sugerida
-
-1. Ejecutar `./scripts/run-server.sh`, dejar el puerto `9008` y pulsar **INICIAR**.
-2. Ejecutar `./scripts/run-client.sh`, escribir `localhost` y `9008`, y pulsar **CONECTAR**.
-3. En la pestaña **CALCULAR PORCIONES**, introducir `40` personas y `3` porciones por persona. El total esperado es `120` y la sugerencia con reserva es `132`.
-4. Introducir `0` personas y comprobar que la aplicación muestra el mensaje de validación sin perder la conexión.
-5. Abrir un segundo cliente contra el mismo servidor y comprobar que ambos reciben respuesta y que el log del servidor registra las dos conexiones.
-6. Cerrar el servidor y comprobar que el cliente informa el error al intentar calcular.
-
-> **Nota sobre la consola de Windows.** Si las pruebas se ejecutan desde una consola configurada con una página de códigos distinta de UTF-8, las tildes pueden verse alteradas en la salida de texto (`integraci?n` en lugar de `integración`). Es un efecto de la consola, no de la aplicación: las ventanas Swing muestran los acentos correctamente. Puede evitarse ejecutando `java` con `-Dstdout.encoding=UTF-8`.
+| Paso | Acción | Resultado esperado |
+|---|---|---|
+| 1 | Iniciar el servidor en el puerto `9008`. | Estado «ONLINE (puerto 9008)» y una línea `[SERVICIO]` en el log. |
+| 2 | En el cliente, conectar a `localhost:9008`. | Estado «CONECTADO a localhost:9008»; en el servidor aparece «conectado -->». |
+| 3 | Calcular con `40` personas y `3` porciones. | Total `120`, reserva `132`, «Reunión mediana». |
+| 4 | Calcular con `0` personas. | El cliente muestra el error de validación y no envía nada. |
+| 5 | Calcular con texto en un campo. | Mensaje «debe ser un número entero». |
+| 6 | Abrir un segundo cliente y calcular. | El servidor registra las peticiones de ambos, cada una con su puerto de origen. |
+| 7 | Detener el servidor y calcular desde el cliente. | A los tres segundos aparece «El servidor no respondió al cálculo.». |
+| 8 | Con el servidor detenido, pulsar CONECTAR. | «El servidor no respondió dentro del tiempo esperado.» y el estado vuelve a «DESCONECTADO». |
+| 9 | Intentar iniciar el servidor en el puerto `80`. | Error «El puerto debe ser un número entre 1024 y 65535.». |

@@ -5,12 +5,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 rm -rf out
-mkdir -p out/main out/test
 
-javac --release 8 -encoding UTF-8 -d out/main \
-  $(find src/main/java -name '*.java' -print)
+# El servidor y el cliente son proyectos independientes: cada uno se compila por separado.
+for proyecto in servidor cliente; do
+  mkdir -p "out/$proyecto/main" "out/$proyecto/test"
 
-javac --release 8 -encoding UTF-8 -cp out/main -d out/test \
-  $(find src/test/java -name '*.java' -print)
+  javac --release 17 -encoding UTF-8 -d "out/$proyecto/main" \
+    $(find "$proyecto/src/main/java" -name '*.java' -print)
+
+  javac --release 17 -encoding UTF-8 -cp "out/$proyecto/main" -d "out/$proyecto/test" \
+    $(find "$proyecto/src/test/java" -name '*.java' -print)
+done
 
 echo "Compilación completada en $ROOT_DIR/out"

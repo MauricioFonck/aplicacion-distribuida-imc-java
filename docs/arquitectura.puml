@@ -5,18 +5,60 @@ skinparam shadowing false
 skinparam defaultFontName Arial
 
 actor "Organizador" as user
-component "Cliente de porciones\nClientWindow + PorcionesClient" as client
-component "Protocolo compartido\nPorcionesProtocol" as protocol
-component "Servidor de porciones\nServerWindow + PorcionesServer" as server
-component "Calculo de dominio\nPorcionesCalculator" as calculator
 
-user --> client : Ingresa IP, puerto, personas y porciones por persona
-client --> protocol : Serializa solicitud
-protocol --> server : TCP\nint personas + int porciones por persona
-server --> calculator : Calcula el total de porciones
-calculator --> server : valido + total + mensaje
-server --> protocol : Serializa respuesta
-protocol --> client : TCP\nboolean valido + long total + UTF mensaje
-client --> user : Muestra el total y la reserva sugerida
+package "Cliente (proyecto cliente/)" {
+  component "entrypoint.gui\nClienteFrame" as cgui
+  package "Nucleo del cliente" {
+    interface "GestionarConexionInputPort\nCalcularPorcionesInputPort" as cin
+    component "aplicacion\nClientePorcionesService" as csvc
+    component "dominio\nDatosReunion, ResultadoPorciones\nAsistentes, PorcionesPorPersona" as cdom
+    interface "ClienteUdpPort" as cout
+    interface "PuertoNotificacionCliente" as cnot
+  }
+  component "adaptadores.red\nAdaptadorClienteUdp\nProtocoloUdpMapper + CanalUdp" as cudp
+  component "adaptadores.notificacion\nAdaptadorNotificacionCliente" as cobs
+}
+
+package "Servidor (proyecto servidor/)" {
+  component "entrypoint.udp\nReceptorPeticionesUdp" as srx
+  component "entrypoint.gui\nServidorFrame" as sgui
+  package "Nucleo del servidor" {
+    interface "ProcesarPeticionUdpInputPort" as sin
+    interface "GestionarServidorInputPort" as sges
+    component "aplicacion\nProcesarPeticionUdpService\nGestionarServidorService" as ssvc
+    component "dominio\nEstimacion, Resultado\nAsistentes, PorcionesPorPersona" as sdom
+    interface "PuertoSalidaRed" as sout
+    interface "ControladorServidorRedPort" as sctl
+    interface "PuertoNotificacionEvento" as snot
+  }
+  component "adaptadores.red\nAdaptadorSalidaUdp\nUdpNetworkMapper + CanalUdp" as sudp
+  component "adaptadores.red\nAdaptadorControlServidorRed" as sadm
+  component "adaptadores.red\nAdaptadorNotificacionEvento" as sobs
+}
+
+user --> cgui : personas y porciones por persona
+cgui --> cin
+cin -- csvc
+csvc --> cdom
+csvc --> cout
+csvc --> cnot
+cout -- cudp
+cnot -- cobs
+cobs ..> cgui : ObservadorCliente
+
+cudp --> srx : datagrama UDP\nCALCULAR;40;3
+srx --> sin
+sin -- ssvc
+sgui --> sges
+sges -- ssvc
+ssvc --> sdom : calcula el total
+ssvc --> sout
+ssvc --> sctl
+ssvc --> snot
+sout -- sudp
+sctl -- sadm
+snot -- sobs
+sobs ..> sgui : ObservadorServidor
+sudp --> cudp : datagrama UDP\nOK_CALCULO;120;132;...
 
 @enduml
