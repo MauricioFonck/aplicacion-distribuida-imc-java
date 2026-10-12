@@ -13,8 +13,9 @@ Este repositorio aloja más de un proyecto. **Cada rama contiene una aplicación
 | [`main`](../../tree/main) | Aplicación distribuida para calcular el IMC (este documento). | Base de código y documentación de referencia. |
 | [`parcial-corte-1`](../../tree/parcial-corte-1) | **Parcial Corte 1** — Ejercicio 35: porciones de comida para una reunión. | Entrega del primer corte, desarrollada sobre esta base. |
 | [`actividad-corte-2`](../../tree/actividad-corte-2) | **Actividad Corte 2** — Ejercicio 35 con protocolo UDP y arquitectura hexagonal. | Entrega del segundo corte, desarrollada sobre `parcial-corte-1`. |
+| [`actividad2-corte-2`](../../tree/actividad2-corte-2) | **Actividad 2 Corte 2** — Ejercicio 35 con cliente-servidor RMI. | Entrega RMI desarrollada sobre `actividad-corte-2`. |
 
-El detalle de cada entrega se encuentra más abajo, en [Parcial Corte 1](#parcial-corte-1) y [Actividad Corte 2](#actividad-corte-2).
+El detalle de cada entrega se encuentra más abajo, en [Parcial Corte 1](#parcial-corte-1), [Actividad Corte 2](#actividad-corte-2) y [Actividad 2 Corte 2 — RMI](#actividad-2-corte-2--rmi).
 
 ### Nota sobre el historial del repositorio
 
@@ -182,6 +183,37 @@ git checkout actividad-corte-2
 La documentación de la entrega está en el `README.md` de esa rama y en sus archivos `docs/informe-academico.md`, `docs/resultado-pruebas.md` y `docs/arquitectura.puml`.
 
 > Esta rama `main` **no recibe mezclas** desde `actividad-corte-2`.
+
+## Actividad 2 Corte 2 — RMI
+
+La entrega más reciente del Ejercicio 35 está publicada en la rama [`actividad2-corte-2`](../../tree/actividad2-corte-2). Esta versión conserva la regla de negocio de porciones para una reunión, pero reemplaza la comunicación UDP por **Java RMI**.
+
+### Características de la versión RMI
+
+| Aspecto | `actividad-corte-2` | `actividad2-corte-2` |
+|---|---|---|
+| Protocolo de transporte | UDP (`DatagramSocket` y `DatagramPacket`) | Java RMI (`Remote`, `Registry` y `UnicastRemoteObject`) |
+| Contrato | Mensajes de texto delimitados | Interfaz remota `PorcionesRemote` |
+| Respuesta | Texto dentro de un datagrama | `PorcionesResponse` serializable |
+| Organización | Arquitectura hexagonal UDP | Proyectos independientes `servidor/` y `cliente/` con adaptadores RMI |
+| Puerto por defecto | `9008` | `1099` para el registro RMI |
+| Interfaz | Ventanas Swing | Ventanas Swing con `SwingWorker` para llamadas remotas |
+
+El servidor publica el servicio `PorcionesService` en el registro RMI. El cliente busca ese servicio usando el host, el puerto del registro y el nombre configurado. El servidor vuelve a validar los datos recibidos y calcula el total y la reserva del 10 % con aritmética `long`.
+
+### Cómo ejecutar la versión RMI
+
+```bash
+git fetch origin
+git checkout actividad2-corte-2
+./scripts/test.sh
+```
+
+Para ejecutar la aplicación, primero se inicia el servidor con `./scripts/run-server.sh` y después el cliente con `./scripts/run-client.sh`. Ambos proyectos compilan con `javac --release 8` y utilizan únicamente la biblioteca estándar de Java.
+
+La documentación específica de esta entrega se encuentra en el `README.md` de la rama y en `docs/informe-academico.md`, `docs/resultado-pruebas.md` y `docs/arquitectura.puml`.
+
+> La rama `main` conserva la aplicación IMC de referencia y **no recibe mezclas** desde las ramas de las actividades.
 
 ## Uso académico
 
