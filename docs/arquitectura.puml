@@ -1,64 +1,16 @@
 @startuml
-left to right direction
 skinparam componentStyle rectangle
-skinparam shadowing false
-skinparam defaultFontName Arial
-
-actor "Organizador" as user
-
-package "Cliente (proyecto cliente/)" {
-  component "entrypoint.gui\nClienteFrame" as cgui
-  package "Nucleo del cliente" {
-    interface "GestionarConexionInputPort\nCalcularPorcionesInputPort" as cin
-    component "aplicacion\nClientePorcionesService" as csvc
-    component "dominio\nDatosReunion, ResultadoPorciones\nAsistentes, PorcionesPorPersona" as cdom
-    interface "ClienteUdpPort" as cout
-    interface "PuertoNotificacionCliente" as cnot
-  }
-  component "adaptadores.red\nAdaptadorClienteUdp\nProtocoloUdpMapper + CanalUdp" as cudp
-  component "adaptadores.notificacion\nAdaptadorNotificacionCliente" as cobs
-}
-
-package "Servidor (proyecto servidor/)" {
-  component "entrypoint.udp\nReceptorPeticionesUdp" as srx
-  component "entrypoint.gui\nServidorFrame" as sgui
-  package "Nucleo del servidor" {
-    interface "ProcesarPeticionUdpInputPort" as sin
-    interface "GestionarServidorInputPort" as sges
-    component "aplicacion\nProcesarPeticionUdpService\nGestionarServidorService" as ssvc
-    component "dominio\nEstimacion, Resultado\nAsistentes, PorcionesPorPersona" as sdom
-    interface "PuertoSalidaRed" as sout
-    interface "ControladorServidorRedPort" as sctl
-    interface "PuertoNotificacionEvento" as snot
-  }
-  component "adaptadores.red\nAdaptadorSalidaUdp\nUdpNetworkMapper + CanalUdp" as sudp
-  component "adaptadores.red\nAdaptadorControlServidorRed" as sadm
-  component "adaptadores.red\nAdaptadorNotificacionEvento" as sobs
-}
-
-user --> cgui : personas y porciones por persona
-cgui --> cin
-cin -- csvc
-csvc --> cdom
-csvc --> cout
-csvc --> cnot
-cout -- cudp
-cnot -- cobs
-cobs ..> cgui : ObservadorCliente
-
-cudp --> srx : datagrama UDP\nCALCULAR;40;3
-srx --> sin
-sin -- ssvc
-sgui --> sges
-sges -- ssvc
-ssvc --> sdom : calcula el total
-ssvc --> sout
-ssvc --> sctl
-ssvc --> snot
-sout -- sudp
-sctl -- sadm
-snot -- sobs
-sobs ..> sgui : ObservadorServidor
-sudp --> cudp : datagrama UDP\nOK_CALCULO;120;132;...
-
+actor Usuario
+component "Cliente Swing" as Cliente
+component "PorcionesClient" as AdaptadorCliente
+component "Registro RMI\n:1099" as Registro
+component "PorcionesRemoteImpl" as Servicio
+component "Estimacion\nDominio" as Dominio
+Usuario --> Cliente : ingresa datos
+Cliente --> AdaptadorCliente : SwingWorker
+AdaptadorCliente --> Registro : lookup(PorcionesService)
+AdaptadorCliente --> Servicio : conectar / calcular / desconectar
+Servicio --> Dominio : valida y calcula
+Dominio --> Servicio : PorcionesResponse
+Servicio --> AdaptadorCliente : DTO serializable
 @enduml
