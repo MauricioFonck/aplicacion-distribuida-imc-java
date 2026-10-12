@@ -39,8 +39,12 @@ public final class RmiServer implements AutoCloseable {
     public synchronized void stop() {
         if (registry == null) return;
         try { registry.unbind(serviceName); } catch (Exception ignored) { }
-        if (service != null) UnicastRemoteObject.unexportObject(service, true);
-        UnicastRemoteObject.unexportObject(registry, true);
+        try {
+            if (service != null) UnicastRemoteObject.unexportObject(service, true);
+            UnicastRemoteObject.unexportObject(registry, true);
+        } catch (Exception ignored) {
+            // El cierre debe ser idempotente aunque otro hilo ya haya liberado RMI.
+        }
         service = null;
         registry = null;
         logger.accept("Servidor RMI detenido");
